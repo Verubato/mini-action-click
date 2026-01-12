@@ -17,93 +17,157 @@ local prefixes = {
 	"PossessButton",
 }
 
-local function IsSecureActionButton(btn)
-	return btn and btn.GetAttribute and btn.SetAttribute and btn.RegisterForClicks
+local function HideTooltip()
+	if GameTooltip then
+		GameTooltip:Hide()
+	end
 end
 
-local function EnsureOverlay(btn)
-	local existing = overlays[btn]
+---Returns the action slot for the specified secure button.
+---@return number|nil
+local function GetActionForButton(button)
+	local action = button.action
+
+	if type(action) == "number" then
+		return action
+	end
+
+	action = button:GetAttribute("action")
+
+	if type(action) == "number" then
+		return action
+	end
+
+	return nil
+end
+
+---Shows the gametooltip for the spell/action of the secure button.
+---@param overlay any
+local function ShowTooltip(overlay)
+	if not GameTooltip then
+		return
+	end
+
+	if GameTooltip_SetDefaultAnchor then
+		-- use the default anchor position where possible
+		GameTooltip_SetDefaultAnchor(GameTooltip, UIParent)
+	else
+		GameTooltip:SetOwner(overlay, "ANCHOR_RIGHT")
+	end
+
+	local prefix = overlay.Prefix
+	local id = overlay.Id
+	local button = overlay.Button
+
+	if prefix == "PetActionButton" then
+		GameTooltip:SetPetAction(id)
+		GameTooltip:Show()
+		return
+	end
+
+	if prefix == "ShapeshiftButton" then
+		GameTooltip:SetShapeshift(id)
+		GameTooltip:Show()
+		return
+	end
+
+	if prefix == "PossessButton" then
+		if GameTooltip.SetPossession then
+			GameTooltip:SetPossession(id)
+			GameTooltip:Show()
+			return
+		end
+	end
+
+	local actionSlot = GetActionForButton(button)
+
+	if actionSlot then
+		GameTooltip:SetAction(actionSlot)
+		GameTooltip:Show()
+		return
+	end
+
+	GameTooltip:Hide()
+end
+
+local function ApplyHoverVisuals(button, isOver)
+	if button.LockHighlight and button.UnlockHighlight then
+		if isOver then
+			button:LockHighlight()
+		else
+			button:UnlockHighlight()
+		end
+	end
+
+	local hl = button.GetHighlightTexture and button:GetHighlightTexture()
+	if hl then
+		if isOver then
+			hl:Show()
+		else
+			hl:Hide()
+		end
+	end
+
+	if button.hoverTexture then
+		if isOver then
+			button.hoverTexture:Show()
+		else
+			button.hoverTexture:Hide()
+		end
+	end
+end
+
+---Creates the overlay button ontop of the existing button.
+---@param button table
+---@param prefix string
+---@param id number
+---@return table|nil
+local function EnsureOverlay(button, prefix, id)
+	local existing = overlays[button]
 
 	if existing then
 		return existing
 	end
 
-	local name = btn:GetName()
+	local name = button:GetName()
 	if not name then
 		return nil
 	end
 
-	local overlay = CreateFrame("Button", name .. "MouseDownOverlay", btn, "SecureActionButtonTemplate")
-	overlay:SetAllPoints(btn)
-	overlay:SetFrameLevel(btn:GetFrameLevel() + 10)
+	local overlay = CreateFrame("Button", name .. "MouseDownOverlay", button, "SecureActionButtonTemplate")
+	overlay:SetAllPoints(button)
+	overlay:SetFrameLevel(button:GetFrameLevel() + 10)
 	overlay:EnableMouse(true)
 	overlay:RegisterForClicks("AnyDown")
+	overlay:SetAttribute("type", "click")
+	overlay:SetAttribute("clickbutton", button)
+	overlay:Show()
 
-	local function ApplyHoverVisuals(isOver)
-		if btn.LockHighlight and btn.UnlockHighlight then
-			if isOver then
-				btn:LockHighlight()
-			else
-				btn:UnlockHighlight()
-			end
-		end
-
-		local hl = btn.GetHighlightTexture and btn:GetHighlightTexture()
-		if hl then
-			if isOver then
-				hl:Show()
-			else
-				hl:Hide()
-			end
-		end
-
-		if btn.hoverTexture then
-			if isOver then
-				btn.hoverTexture:Show()
-			else
-				btn.hoverTexture:Hide()
-			end
-		end
-	end
+	overlay.Button = button
+	overlay.Prefix = prefix
+	overlay.Id = id
 
 	overlay:SetScript("OnEnter", function()
-		ApplyHoverVisuals(true)
+		ApplyHoverVisuals(button, true)
+		ShowTooltip(overlay)
 	end)
 
 	overlay:SetScript("OnLeave", function()
-		ApplyHoverVisuals(false)
+		ApplyHoverVisuals(button, false)
+		HideTooltip()
 	end)
 
-	overlays[btn] = overlay
+	overlays[button] = overlay
 	return overlay
 end
 
-local function ConfigureOverlay(btn)
-	if not IsSecureActionButton(btn) then
-		return
-	end
-
-	local overlay = EnsureOverlay(btn)
-	if not overlay then
-		return
-	end
-
-	if InCombatLockdown() then
-		return
-	end
-
-	overlay:SetAttribute("type", "click")
-	overlay:SetAttribute("clickbutton", btn)
-	overlay:Show()
-end
-
-local function UpdateAll()
+local function Run()
 	for _, prefix in ipairs(prefixes) do
 		for i = 1, maxButtonsCount do
 			local btn = _G[prefix .. i]
+
 			if btn then
-				EnsureOverlay(btn)
-				ConfigureOverlay(btn)
+				EnsureOverlay(btn, prefix, i)
 			end
 		end
 	end
@@ -121,13 +185,13 @@ local function OnEvent(_, event, arg1)
 	end
 
 	if event == "PLAYER_LOGIN" then
-		UpdateAll()
+		Run()
 		return
 	end
 
 	if event == "PLAYER_REGEN_ENABLED" then
 		frame:UnregisterEvent("PLAYER_REGEN_ENABLED")
-		UpdateAll()
+		Run()
 		return
 	end
 
@@ -136,7 +200,7 @@ local function OnEvent(_, event, arg1)
 		return
 	end
 
-	UpdateAll()
+	Run()
 end
 
 frame:RegisterEvent("ADDON_LOADED")
