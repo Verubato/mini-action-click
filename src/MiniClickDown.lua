@@ -138,8 +138,13 @@ local function EnsureOverlay(button, prefix, id)
 	overlay:SetAllPoints(button)
 	overlay:SetFrameLevel(button:GetFrameLevel() + 10)
 	overlay:EnableMouse(true)
-	overlay:RegisterForClicks("AnyDown")
+	-- listen for down and up
+	overlay:RegisterForClicks("AnyDown", "AnyUp")
+	-- trigger clicks on down and up
+	overlay:SetAttribute("pressAndHoldAction", "1")
 	overlay:SetAttribute("type", "click")
+	overlay:SetAttribute("typerelease", "click")
+	-- link to the underlying action button
 	overlay:SetAttribute("clickbutton", button)
 	overlay:Show()
 
