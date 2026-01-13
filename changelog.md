@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.0
+
+Addon rename.
+
 ## 1.1.0
 
 Now clicks on mouse up as well.
