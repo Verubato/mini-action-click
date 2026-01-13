@@ -1,9 +1,9 @@
 ## Interface: 120001, 120000, 110207, 50503, 40402, 38000, 30405, 30300, 20505, 11508
-## Title: MiniClickDown
+## Title: MiniActionClick
 ## Notes: Triggers action buttons on mouse down in addition to mouse up.
 ## Author: Verz
 ## Version: 1.1.0
-## IconTexture: Interface\AddOns\MiniClickDown\icon.blp
+## IconTexture: Interface\AddOns\MiniActionClick\icon.blp
 ## X-Curse-Project-ID: 1420413
 
-MiniClickDown.lua
+MiniActionClick.lua
